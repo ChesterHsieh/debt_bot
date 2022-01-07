@@ -1,0 +1,60 @@
+version: '3'
+services:
+  zookeeper:
+    hostname: zookeeper
+    container_name: zookeeper
+    image: 'bitnami/zookeeper:latest'
+    ports:
+      - "2181:2181"
+    environment:
+       - ALLOW_ANONYMOUS_LOGIN=yes    
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    restart: always    
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_BROKER_ID: 1
+      KAFKA_CREATE_TOPICS: "kafka-nifi-src:1:1,kafka-nifi-dst:1:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      # HTTP
+      - 8080:8080/tcp
+      # HTTPS
+      - 8443:8443/tcp
+      # Remote Input Socket
+      - 10000:10000/tcp
+      # JVM Debugger
+      - 8000:8000/tcp
+      # Cluster Node Protocol
+      #- 11443:11443/tcp
+    volumes:
+      - /var/lib/nifi/database_repository:/opt/nifi/nifi-current/database_repository
+      - /var/lib/nifi/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - /var/lib/nifi/content_repository:/opt/nifi/nifi-current/content_repository
+      - /var/lib/nifi/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - /var/lib/nifi/state:/opt/nifi/nifi-current/state
+      - /var/lib/nifi/logs:/opt/nifi/nifi-current/logs
+
+      # A custom nifi.properties file can be mounted as follows.
+      #- /var/lib/nifi/conf/nifi.properties:/opt/nifi/nifi-current/conf/nifi.properties:ro
+
+    environment:
+
+
+      # nifi.web.http.host
+      NIFI_WEB_HTTP_HOST: '0.0.0.0'
+
+      # nifi.web.http.port
+      #   HTTP Port
+      NIFI_WEB_HTTP_PORT: 8080
